@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -21,7 +20,7 @@ func NewAPIClient() *APIClient {
 }
 
 // GetDepartures of a stop area
-func (a *APIClient) GetDepartures(stopAreaCode string) (map[string]interface{}, error) {
+func (a *APIClient) GetDepartures(stopAreaCode string) (*Departure, error) {
 	var reqURL = a.Host + "stopareacode/" + stopAreaCode + "/departures"
 	jsonBlob, err := a.get(reqURL)
 
@@ -32,11 +31,16 @@ func (a *APIClient) GetDepartures(stopAreaCode string) (map[string]interface{}, 
 		return nil, err
 	}
 
-	var timingPointPasses []TimingPointPass
+	departures := NewDeparture()
+	var timingCode string
+
 	// loop over stop areas
 	for _, stopAreaValue := range stopArea {
 		// loop over timingpoints
-		for _, timingPointValue := range stopAreaValue.(map[string]interface{}) {
+		for timingPointKey, timingPointValue := range stopAreaValue.(map[string]interface{}) {
+			if timingCode == "" {
+				timingCode = timingPointKey
+			}
 			// from the timing point get the passes
 			for timingPointGroupKey, timingPointGroupValue := range timingPointValue.(map[string]interface{}) {
 				if timingPointGroupKey != "Passes" {
@@ -45,14 +49,17 @@ func (a *APIClient) GetDepartures(stopAreaCode string) (map[string]interface{}, 
 				for _, pass := range timingPointGroupValue.(map[string]interface{}) {
 					var timingPointPass TimingPointPass
 					mapstructure.Decode(pass, &timingPointPass)
-					timingPointPasses = append(timingPointPasses, timingPointPass)
+					if timingPointPass.TimingPointCode == timingCode {
+						departures.AddTimingPointPass(timingPointPass, true)
+					} else {
+						departures.AddTimingPointPass(timingPointPass, false)
+					}
 				}
 			}
 		}
 	}
-	fmt.Printf("Passes: %+v", timingPointPasses)
 
-	return stopArea, nil
+	return departures, nil
 }
 
 func (a *APIClient) get(path string) ([]byte, error) {
