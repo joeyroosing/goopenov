@@ -1,4 +1,4 @@
-package main
+package goopenov
 
 import (
 	"encoding/json"

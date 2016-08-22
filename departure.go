@@ -1,4 +1,4 @@
-package main
+package openov
 
 // Departure ...
 type Departure struct {
